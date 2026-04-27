@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineVault | Search & Stream</title>
+    <style>
+        /* FULL CSS STYLING */
+        :root {
+            --primary: #f5c518; /* IMDb Yellow */
+            --bg: #000000;
+            --card-bg: #1a1a1a;
+            --text: #ffffff;
+            --muted: #b0b0b0;
+            --btn-hover: #e2b100;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            padding: 50px 20px;
+            text-align: center;
+            background: linear-gradient(180deg, #121212 0%, #000000 100%);
+            border-bottom: 1px solid #333;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0 0 30px 0;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: 900;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 12px;
+            max-width: 700px;
+            width: 90%;
+            margin: 0 auto;
+        }
+
+        input {
+            flex: 1;
+            padding: 18px 25px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #121212;
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-search {
+            padding: 0 40px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: black;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.3s;
+        }
+
+        .btn-search:hover {
+            background: var(--btn-hover);
+        }
+
+        /* RESULT AREA */
+        .main-view {
+            width: 90%;
+            max-width: 900px;
+            margin: 50px 0;
+        }
+
+        #result-card {
+            display: none; /* Hidden by default */
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .flex-layout {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .poster-box {
+            width: 320px;
+            min-width: 320px;
+        }
+
+        .poster-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .details-box {
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .details-box h2 {
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            line-height: 1.2;
+        }
+
+        .info-tags {
+            display: flex;
+            gap: 20px;
+            color: var(--muted);
+            font-size: 1rem;
+            margin-bottom: 25px;
+        }
+
+        .summary {
+            line-height: 1.7;
+            color: #ddd;
+            margin-bottom: 35px;
+            font-size: 1.1rem;
+        }
+
+        /* REDIRECT ACTION BUTTON */
+        .watch-btn {
+            display: inline-block;
+            background: #ffffff;
+            color: #000000;
+            padding: 18px 40px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+        }
+
+        .watch-btn:hover {
+            background: var(--primary);
+            transform: scale(1.02);
+        }
+
+        @media (max-width: 768px) {
+            .flex-layout { flex-direction: column; }
+            .poster-box { width: 100%; height: 450px; }
+            .details-box { padding: 30px; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>MovieFetch</h1>
+        <div class="search-container">
+            <input type="text" id="movieInput" placeholder="Enter movie or anime title...">
+            <button class="btn-search" onclick="findMovie()">Search</button>
+        </div>
+    </header>
+
+    <div class="main-view">
+        <div id="result-card">
+            <div class="flex-layout">
+                <div class="poster-box">
+                    <img id="poster" src="" alt="Movie Poster">
+                </div>
+                <div class="details-box">
+                    <h2 id="title"></h2>
+                    <div class="info-tags">
+                        <span id="year"></span>
+                        <span id="rating" style="color: var(--primary);"></span>
+                        <span id="runtime"></span>
+                    </div>
+                    <p class="summary" id="plot"></p>
+                    
+                    <button id="actionBtn" class="watch-btn">CLICK HERE TO WATCH</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* FULL JAVASCRIPT LOGIC */
+        const API_KEY = '4795c984';
+        let storedImdbID = '';
+
+        async function findMovie() {
+            const query = document.getElementById('movieInput').value.trim();
+            const card = document.getElementById('result-card');
+
+            if (!query) return;
+
+            try {
+                const response = await fetch(`https://www.omdbapi.com/?t=${query}&apikey=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.Response === "True") {
+                    // Store the ttXXXXXX ID for the links
+                    storedImdbID = data.imdbID;
+
+                    // Update HTML content
+                    document.getElementById('title').innerText = data.Title;
+                    document.getElementById('year').innerText = data.Year;
+                    document.getElementById('rating').innerText = `IMDb: ${data.imdbRating}`;
+                    document.getElementById('runtime').innerText = data.Runtime;
+                    document.getElementById('plot').innerText = data.Plot;
+                    
+                    // Update Poster
+                    const posterImg = data.Poster !== "N/A" ? data.Poster : "https://via.placeholder.com/400x600?text=No+Poster+Found";
+                    document.getElementById('poster').src = posterImg;
+
+                    // Show the result
+                    card.style.display = 'block';
+                } else {
+                    alert("No movie found with that name.");
+                    card.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Fetch error:", error);
+                alert("Error connecting to server.");
+            }
+        }
+
+        // REDIRECT LOGIC
+        document.getElementById('actionBtn').addEventListener('click', function() {
+            if (!storedImdbID) return;
+
+            // Link 1: Official IMDb Page
+            const imdbOfficial = `https://playimdb.com/title/${storedImdbID}`;
+            
+            // Link 2: Your requested streaming format
+            const streamMe = `https://playimdb.com/title/${storedImdbID}`;
+
+            // 1. Open official link
+            window.open(imdbOfficial, '_blank');
+            
+            // 2. Open stream link in second tab after short delay
+            setTimeout(() => {
+                window.open(streamMe, '_blank');
+            }, 400);
+        });
+
+        // Search when user hits "Enter"
+        document.getElementById('movieInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findMovie();
+        });
+    </script>
+</body>
+</html>
