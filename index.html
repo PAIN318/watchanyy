@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineVault | Top Recommendations</title>
+    <title>CineVault | Elite Collection</title>
     <style>
         :root { --primary: #f5c518; --bg: #121212; --card-bg: #1a1a1a; --text: #ffffff; --accent: #ff4b2b; }
         * { cursor: none !important; }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
         
-        /* CURSOR: Preserving 3 and 12 lag logic */
+        /* CURSOR LOGIC (3 and 12 Lag) */
         .cursorFollower, .cursorFollowerDot { position: fixed; top: 0; left: 0; border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); mix-blend-mode: difference; }
         .cursorFollower { width: 2.5rem; height: 2.5rem; border: 2px solid white; transition: width 0.3s, height 0.3s; }
         .cursorFollowerDot { width: 0.8rem; height: 0.8rem; background: var(--primary); }
@@ -26,6 +26,15 @@
         #status-bar { text-align: center; font-size: 0.8rem; color: #444; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }
         .grid-title { text-align: center; color: var(--primary); font-size: 1.5rem; letter-spacing: 10px; text-transform: uppercase; margin: 40px 0; font-weight: 900; }
 
+        /* HISTORY BAR */
+        #history-section { display: none; width: 95%; max-width: 1600px; margin: 0 auto 40px; }
+        #history-grid { display: flex; gap: 15px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+        #history-grid::-webkit-scrollbar { display: none; }
+        .hist-card { min-width: 120px; height: 180px; border-radius: 10px; overflow: hidden; border: 1px solid #333; transition: 0.3s; flex-shrink: 0; }
+        .hist-card:hover { border-color: var(--primary); transform: scale(1.05); }
+        .hist-card img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* MAIN GRID */
         #trending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; width: 95%; max-width: 1600px; margin: 0 auto 100px; }
         .movie-card { background: var(--card-bg); border-radius: 20px; overflow: hidden; border: 1px solid #222; transition: 0.4s; cursor: pointer; }
         .movie-card:hover { transform: translateY(-10px); border-color: var(--primary); }
@@ -43,7 +52,7 @@
         @media (max-width: 900px) { .flex-row { flex-direction: column; } .poster-box { width: 100%; height: 400px; } }
     </style>
 </head>
-<body onload="loadTrending()">
+<body onload="initVault()">
 
     <span id="cursorFollower" class="cursorFollower"></span>
     <span id="cursorFollowerDot" class="cursorFollowerDot"></span>
@@ -58,7 +67,7 @@
         </div>
     </header>
 
-    <div id="status-bar">Sync Status: <span id="status-text">Verifying Collection...</span></div>
+    <div id="status-bar">Sync Status: <span id="status-text">Synchronizing...</span></div>
 
     <div id="movie-result">
         <div class="flex-row">
@@ -72,6 +81,11 @@
         </div>
     </div>
 
+    <div id="history-section">
+        <div style="font-size: 0.8rem; letter-spacing: 5px; color: #555; text-transform: uppercase; margin-bottom: 10px;">Recently Viewed</div>
+        <div id="history-grid"></div>
+    </div>
+
     <div class="grid-title">TOP RECOMMENDATIONS</div>
     <div id="trending-grid"></div>
 
@@ -79,7 +93,7 @@
         const OMDB_KEY = '4795c984';
         let currentID = '';
 
-        /* --- CURSOR --- */
+        /* --- CURSOR ANIMATION (3/12 LAG) --- */
         const follower = document.querySelector(".cursorFollower");
         const dot = document.querySelector(".cursorFollowerDot");
         let mouseX = 0, mouseY = 0, xp = 0, yp = 0, xpDot = 0, ypDot = 0;
@@ -94,13 +108,38 @@
         animateCursor();
 
         function applyHover() {
-            document.querySelectorAll('button, input, .movie-card').forEach(item => {
+            document.querySelectorAll('button, input, .movie-card, .hist-card').forEach(item => {
                 item.addEventListener('mouseenter', () => document.body.classList.add('cursor-active'));
                 item.addEventListener('mouseleave', () => document.body.classList.remove('cursor-active'));
             });
         }
 
-        /* --- SEARCH --- */
+        async function initVault() {
+            loadTrending();
+            loadHistory();
+        }
+
+        /* --- HISTORY ENGINE (IP-BASED) --- */
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const history = await res.json();
+                const section = document.getElementById('history-section');
+                const grid = document.getElementById('history-grid');
+
+                if (history && history.length > 0) {
+                    section.style.display = 'block';
+                    grid.innerHTML = history.map(item => `
+                        <div class="hist-card" onclick="fetchMovie('${item.title}')">
+                            <img src="${item.poster}" alt="">
+                        </div>
+                    `).join('');
+                    applyHover();
+                }
+            } catch (e) { console.warn("History unavailable"); }
+        }
+
+        /* --- SEARCH & RECORD --- */
         async function fetchMovie(query) {
             if (!query) return;
             const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(query)}&apikey=${OMDB_KEY}`);
@@ -113,24 +152,26 @@
                 document.getElementById('uiPoster').src = data.Poster;
                 document.getElementById('movie-result').style.display = 'block';
                 window.scrollTo({top: 250, behavior: 'smooth'});
+
+                // RECORD TO IP HISTORY
+                fetch('/api/history', {
+                    method: 'POST',
+                    body: JSON.stringify({ title: data.Title, poster: data.Poster })
+                }).then(() => loadHistory());
             }
         }
 
-        /* --- PARALLEL LOADING ENGINE --- */
+        /* --- TOP RECOMMENDATIONS (PARALLEL) --- */
         async function loadTrending() {
             const grid = document.getElementById('trending-grid');
             const statusText = document.getElementById('status-text');
             statusText.innerText = "UPDATING TOP RECOMMENDATIONS...";
 
             try {
-                // FOOLING THE BROWSER: Cache-busting with Date.now()
                 const response = await fetch(`/api/recommend?t=${Date.now()}`);
-                if (!response.ok) throw new Error("Curation Timeout");
-                
                 const titles = await response.json();
                 grid.innerHTML = "";
 
-                // FOOLING THE SPEED: Parallel Fetch (All at once)
                 const moviePromises = titles.map(t => 
                     fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(t)}&apikey=${OMDB_KEY}`).then(r => r.json())
                 );
@@ -147,9 +188,9 @@
                         grid.appendChild(card);
                     }
                 });
-                statusText.innerText = `SUCCESS: ${results.filter(r => r.Response === "True").length} ELITE TITLES LIVE`;
+                statusText.innerText = `SUCCESS: ${results.filter(r => r.Response === "True").length} TITLES LIVE`;
             } catch (err) {
-                statusText.innerText = "VAULT BUSY. REFRESH TO RETRY.";
+                statusText.innerText = "SYNC ERROR: RETRYING...";
             }
             applyHover();
         }
