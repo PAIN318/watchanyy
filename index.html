@@ -24,12 +24,9 @@
         .search-btn { background: var(--primary); border: none; padding: 15px 45px; border-radius: 100px; font-weight: 900; }
 
         #status-bar { text-align: center; font-size: 0.8rem; color: #444; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }
-        
-        /* Section Title for Recommendations */
         .grid-title { text-align: center; color: var(--primary); font-size: 1.5rem; letter-spacing: 10px; text-transform: uppercase; margin: 40px 0; font-weight: 900; }
 
         #trending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; width: 95%; max-width: 1600px; margin: 0 auto 100px; }
-        
         .movie-card { background: var(--card-bg); border-radius: 20px; overflow: hidden; border: 1px solid #222; transition: 0.4s; cursor: pointer; }
         .movie-card:hover { transform: translateY(-10px); border-color: var(--primary); }
         .card-img-box { width: 100%; height: 350px; }
@@ -61,7 +58,7 @@
         </div>
     </header>
 
-    <div id="status-bar">Sync Status: <span id="status-text">Curating Today's List...</span></div>
+    <div id="status-bar">Sync Status: <span id="status-text">Verifying Collection...</span></div>
 
     <div id="movie-result">
         <div class="flex-row">
@@ -119,23 +116,21 @@
             }
         }
 
-        /* --- TOP RECOMMENDATIONS (Parallel Loading) --- */
+        /* --- PARALLEL LOADING ENGINE --- */
         async function loadTrending() {
             const grid = document.getElementById('trending-grid');
             const statusText = document.getElementById('status-text');
-            
             statusText.innerText = "UPDATING TOP RECOMMENDATIONS...";
 
             try {
-                // Using the unique timestamp to avoid browser caching
+                // FOOLING THE BROWSER: Cache-busting with Date.now()
                 const response = await fetch(`/api/recommend?t=${Date.now()}`);
-                const curationData = await response.json();
-                const rawContent = curationData.choices[0].message.content;
-                const titles = JSON.parse(rawContent.substring(rawContent.indexOf('['), rawContent.lastIndexOf(']') + 1));
-
+                if (!response.ok) throw new Error("Curation Timeout");
+                
+                const titles = await response.json();
                 grid.innerHTML = "";
 
-                // Fetching all data in parallel for high performance
+                // FOOLING THE SPEED: Parallel Fetch (All at once)
                 const moviePromises = titles.map(t => 
                     fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(t)}&apikey=${OMDB_KEY}`).then(r => r.json())
                 );
@@ -152,9 +147,9 @@
                         grid.appendChild(card);
                     }
                 });
-                statusText.innerText = `SUCCESS: ${results.filter(r => r.Response === "True").length} TOP TITLES LIVE`;
+                statusText.innerText = `SUCCESS: ${results.filter(r => r.Response === "True").length} ELITE TITLES LIVE`;
             } catch (err) {
-                statusText.innerText = "SYNC ERROR: RETRYING...";
+                statusText.innerText = "VAULT BUSY. REFRESH TO RETRY.";
             }
             applyHover();
         }
