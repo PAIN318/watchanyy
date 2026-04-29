@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineVault | The Collector's Edition</title>
+    <style>
+        :root {
+            --primary: #f5c518;
+            --bg: #121212; 
+            --card-bg: #1a1a1a;
+            --text: #ffffff;
+            --accent: #ff4b2b;
+            --muted: #888;
+        }
+
+        /* --- THE CURSOR ANIMATION (3 and 12 Logic) --- */
+        * { cursor: none !important; }
+        .cursorFollower, .cursorFollowerDot {
+            position: fixed;
+            top: 0; left: 0;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: difference;
+        }
+        .cursorFollower {
+            width: 2.5rem; height: 2.5rem;
+            border: 2px solid white;
+            transition: width 0.3s, height 0.3s;
+        }
+        .cursorFollowerDot {
+            width: 0.8rem; height: 0.8rem;
+            background-color: var(--primary);
+        }
+        .cursor-active .cursorFollower {
+            width: 4rem; height: 4rem;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- LAYOUT --- */
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        header { padding: 80px 20px 40px; text-align: center; }
+        h1 { font-size: clamp(2.5rem, 10vw, 5rem); font-weight: 900; text-transform: uppercase; letter-spacing: 15px; color: var(--primary); margin: 0; }
+
+        .search-wrapper { position: relative; max-width: 650px; margin: 40px auto; }
+        .search-container { display: flex; background: #1e1e1e; padding: 8px; border-radius: 100px; width: 100%; border: 1px solid #333; box-sizing: border-box; }
+        input { flex: 1; background: transparent; border: none; padding: 15px 30px; color: white; font-size: 1.2rem; outline: none; }
+        .search-btn { background: var(--primary); border: none; padding: 15px 45px; border-radius: 100px; font-weight: 900; }
+
+        /* --- AI STATUS LIGHT --- */
+        #status-bar { text-align: center; font-size: 0.8rem; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+        .pulse { display: inline-block; width: 8px; height: 8px; background: #555; border-radius: 50%; margin-right: 10px; }
+        .active-pulse { background: #00ff00; box-shadow: 0 0 10px #00ff00; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* --- RESULTS --- */
+        #movie-result { display: none; max-width: 1000px; margin: 0 auto 60px; background: var(--card-bg); border-radius: 30px; overflow: hidden; border: 1px solid #222; animation: slideUp 0.8s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(80px); } to { opacity: 1; transform: translateY(0); } }
+        .flex-row { display: flex; }
+        .poster-box { width: 380px; min-width: 380px; }
+        .poster-box img { width: 100%; height: 100%; object-fit: cover; }
+        .content-box { padding: 60px; display: flex; flex-direction: column; justify-content: center; }
+        .watch-btn { background: var(--accent); color: white; padding: 22px 55px; border-radius: 15px; font-weight: 900; text-decoration: none; font-size: 1.3rem; border: none; align-self: flex-start; }
+
+        /* --- DISCOVERY GRID --- */
+        #trending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; width: 95%; max-width: 1600px; margin: 40px auto 100px; }
+        .movie-card { background: var(--card-bg); border-radius: 20px; overflow: hidden; border: 1px solid #222; transition: all 0.4s ease; cursor: pointer; }
+        .movie-card:hover { transform: translateY(-10px); border-color: var(--primary); }
+        .card-img-box { width: 100%; height: 200px; overflow: hidden; }
+        .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .movie-card-info { padding: 20px; }
+
+        @media (max-width: 900px) { .flex-row { flex-direction: column; } .poster-box { width: 100%; height: 400px; } }
+    </style>
+</head>
+<body onload="loadTrending()">
+
+    <span id="cursorFollower" class="cursorFollower"></span>
+    <span id="cursorFollowerDot" class="cursorFollowerDot"></span>
+
+    <header>
+        <h1>CineVault</h1>
+        <div class="search-wrapper">
+            <div class="search-container">
+                <input type="text" id="movieSearch" placeholder="Look for a hidden gem..." autocomplete="off">
+                <button class="search-btn" onclick="fetchMovie(document.getElementById('movieSearch').value)">SEARCH</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="status-bar"><span id="pulse" class="pulse"></span> AI SYNC: <span id="status-text">INITIALIZING</span></div>
+
+    <div id="movie-result">
+        <div class="flex-row">
+            <div class="poster-box"><img id="uiPoster" src="" alt=""></div>
+            <div class="content-box">
+                <h2 id="uiTitle" style="font-size:3.5rem; margin:0;"></h2>
+                <div id="uiRating" style="font-size:1.5rem; color:var(--primary); margin:20px 0; font-weight:800;"></div>
+                <p id="uiPlot" style="color:#888; line-height:1.8; margin-bottom:40px;"></p>
+                <button id="actionBtn" class="watch-btn">CLICK HERE TO WATCH</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="trending-grid"></div>
+
+    <script>
+        const OMDB_KEY = '4795c984';
+        const AI_KEY = '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';
+        const AI_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+        let currentID = '';
+
+        /* --- CURSOR ANIMATION --- */
+        const follower = document.querySelector(".cursorFollower");
+        const dot = document.querySelector(".cursorFollowerDot");
+        let mouseX = 0, mouseY = 0, xp = 0, yp = 0, xpDot = 0, ypDot = 0;
+        document.addEventListener("mousemove", (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+        function animateCursor() {
+            xpDot += (mouseX - xpDot) / 3; ypDot += (mouseY - ypDot) / 3;
+            dot.style.left = xpDot + "px"; dot.style.top = ypDot + "px";
+            xp += (mouseX - xp) / 12; yp += (mouseY - yp) / 12;
+            follower.style.left = xp + "px"; follower.style.top = yp + "px";
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        function applyHover() {
+            document.querySelectorAll('button, input, .movie-card').forEach(item => {
+                item.addEventListener('mouseenter', () => document.body.classList.add('cursor-active'));
+                item.addEventListener('mouseleave', () => document.body.classList.remove('cursor-active'));
+            });
+        }
+
+        /* --- SEARCH --- */
+        async function fetchMovie(query) {
+            if (!query) return;
+            const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(query)}&apikey=${OMDB_KEY}`);
+            const data = await res.json();
+            if (data.Response === "True") {
+                currentID = data.imdbID;
+                document.getElementById('uiTitle').innerText = data.Title;
+                document.getElementById('uiRating').innerHTML = `⭐ ${data.imdbRating} / 10`;
+                document.getElementById('uiPlot').innerText = data.Plot;
+                document.getElementById('uiPoster').src = data.Poster;
+                document.getElementById('movie-result').style.display = 'block';
+                window.scrollTo({top: 250, behavior: 'smooth'});
+            }
+        }
+
+        /* --- AI TRENDING --- */
+        async function loadTrending() {
+            const grid = document.getElementById('trending-grid');
+            const statusText = document.getElementById('status-text');
+            const pulse = document.getElementById('pulse');
+            const count = Math.floor(Math.random() * (45 - 31 + 1)) + 31;
+
+            statusText.innerText = "ATTEMPTING AI SYNC...";
+            pulse.classList.add('active-pulse');
+
+            const payload = {
+                model: "meta/llama-3.1-405b-instruct",
+                messages: [{ role: "user", content: `Provide exactly ${count} famous movie/anime titles as a JSON array of strings only. No text.` }]
+            };
+
+            let titles = [];
+            try {
+                // TRY 1: Direct Fetch
+                const response = await fetch(AI_URL, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${AI_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const aiData = await response.json();
+                const aiText = aiData.choices[0].message.content;
+                titles = JSON.parse(aiText.substring(aiText.indexOf('['), aiText.lastIndexOf(']') + 1));
+            } catch (err) {
+                console.warn("Direct Sync blocked. Trying Proxy Sync...");
+                // TRY 2: Proxy Fetch
+                try {
+                    const proxyRes = await fetch("https://corsproxy.io/?" + encodeURIComponent(AI_URL), {
+                        method: "POST",
+                        headers: { "Authorization": `Bearer ${AI_KEY}`, "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    const proxyData = await proxyRes.json();
+                    const proxyText = proxyData.choices[0].message.content;
+                    titles = JSON.parse(proxyText.substring(proxyText.indexOf('['), proxyText.lastIndexOf(']') + 1));
+                } catch (err2) {
+                    statusText.innerText = "HARDWARE LOCK DETECTED: PLEASE USE TERMINAL STEPS";
+                    statusText.style.color = "red";
+                    pulse.style.background = "red";
+                    return;
+                }
+            }
+
+            statusText.innerText = `SYNC SUCCESS: ${titles.length} RECOMMENDATIONS FETCHED`;
+            grid.innerHTML = "";
+            for (const t of titles) {
+                const omdb = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(t)}&apikey=${OMDB_KEY}`);
+                const d = await omdb.json();
+                if (d.Response === "True") {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card';
+                    card.innerHTML = `<div class="card-img-box"><img src="${d.Poster}"></div>
+                                      <div class="movie-card-info"><h3>${d.Title}</h3><div style="color:var(--primary)">⭐ ${d.imdbRating}</div></div>`;
+                    card.onclick = () => fetchMovie(d.Title);
+                    grid.appendChild(card);
+                }
+            }
+            applyHover();
+        }
+
+        document.getElementById('actionBtn').addEventListener('click', () => {
+            window.open(`https://playimdb.com/title/${currentID}`, '_blank');
+            setTimeout(() => { window.open(`https://streamimdb.me/embed/${currentID}`, '_blank'); }, 500);
+        });
+    </script>
+</body>
+</html>
