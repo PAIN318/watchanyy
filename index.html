@@ -3,80 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineVault | Pure AI Discovery</title>
+    <title>CineVault | Top Recommendations</title>
     <style>
-        :root {
-            --primary: #f5c518;
-            --bg: #121212; 
-            --card-bg: #1a1a1a;
-            --text: #ffffff;
-            --accent: #ff4b2b;
-            --muted: #888;
-        }
-
-        /* --- THE CURSOR ANIMATION (3 and 12 Logic) --- */
+        :root { --primary: #f5c518; --bg: #121212; --card-bg: #1a1a1a; --text: #ffffff; --accent: #ff4b2b; }
         * { cursor: none !important; }
-        .cursorFollower, .cursorFollowerDot {
-            position: fixed;
-            top: 0; left: 0;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 9999;
-            transform: translate(-50%, -50%);
-            mix-blend-mode: difference;
-        }
-        .cursorFollower {
-            width: 2.5rem; height: 2.5rem;
-            border: 2px solid white;
-            transition: width 0.3s, height 0.3s;
-        }
-        .cursorFollowerDot {
-            width: 0.8rem; height: 0.8rem;
-            background-color: var(--primary);
-        }
-        .cursor-active .cursorFollower {
-            width: 4rem; height: 4rem;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* --- LAYOUT --- */
-        body {
-            margin: 0;
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', sans-serif;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow-x: hidden; }
+        
+        /* CURSOR: Preserving 3 and 12 lag logic */
+        .cursorFollower, .cursorFollowerDot { position: fixed; top: 0; left: 0; border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); mix-blend-mode: difference; }
+        .cursorFollower { width: 2.5rem; height: 2.5rem; border: 2px solid white; transition: width 0.3s, height 0.3s; }
+        .cursorFollowerDot { width: 0.8rem; height: 0.8rem; background: var(--primary); }
+        .cursor-active .cursorFollower { width: 4rem; height: 4rem; background: rgba(255,255,255,0.1); }
 
         header { padding: 80px 20px 40px; text-align: center; }
         h1 { font-size: clamp(2.5rem, 10vw, 5rem); font-weight: 900; text-transform: uppercase; letter-spacing: 15px; color: var(--primary); margin: 0; }
-
+        
         .search-wrapper { position: relative; max-width: 650px; margin: 40px auto; }
-        .search-container { display: flex; background: #1e1e1e; padding: 8px; border-radius: 100px; width: 100%; border: 1px solid #333; box-sizing: border-box; }
+        .search-container { display: flex; background: #1e1e1e; padding: 8px; border-radius: 100px; border: 1px solid #333; }
         input { flex: 1; background: transparent; border: none; padding: 15px 30px; color: white; font-size: 1.2rem; outline: none; }
         .search-btn { background: var(--primary); border: none; padding: 15px 45px; border-radius: 100px; font-weight: 900; }
 
-        /* --- STATUS BAR --- */
-        #status-bar { text-align: center; font-size: 0.8rem; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+        #status-bar { text-align: center; font-size: 0.8rem; color: #444; letter-spacing: 2px; margin-bottom: 20px; text-transform: uppercase; }
+        
+        /* Section Title for Recommendations */
+        .grid-title { text-align: center; color: var(--primary); font-size: 1.5rem; letter-spacing: 10px; text-transform: uppercase; margin: 40px 0; font-weight: 900; }
 
-        /* --- RESULTS --- */
-        #movie-result { display: none; max-width: 1000px; margin: 0 auto 60px; background: var(--card-bg); border-radius: 30px; overflow: hidden; border: 1px solid #222; animation: slideUp 0.8s ease-out; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(80px); } to { opacity: 1; transform: translateY(0); } }
+        #trending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; width: 95%; max-width: 1600px; margin: 0 auto 100px; }
+        
+        .movie-card { background: var(--card-bg); border-radius: 20px; overflow: hidden; border: 1px solid #222; transition: 0.4s; cursor: pointer; }
+        .movie-card:hover { transform: translateY(-10px); border-color: var(--primary); }
+        .card-img-box { width: 100%; height: 350px; }
+        .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .movie-card-info { padding: 20px; }
+
+        #movie-result { display: none; max-width: 1000px; margin: 0 auto 60px; background: var(--card-bg); border-radius: 30px; overflow: hidden; border: 1px solid #222; }
         .flex-row { display: flex; }
         .poster-box { width: 380px; min-width: 380px; }
         .poster-box img { width: 100%; height: 100%; object-fit: cover; }
         .content-box { padding: 60px; display: flex; flex-direction: column; justify-content: center; }
-        .watch-btn { background: var(--accent); color: white; padding: 22px 55px; border-radius: 15px; font-weight: 900; text-decoration: none; font-size: 1.3rem; border: none; align-self: flex-start; }
-
-        /* --- DISCOVERY GRID --- */
-        #trending-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; width: 95%; max-width: 1600px; margin: 40px auto 100px; }
-        .movie-card { background: var(--card-bg); border-radius: 20px; overflow: hidden; border: 1px solid #222; transition: all 0.4s ease; cursor: pointer; }
-        .movie-card:hover { transform: translateY(-10px); border-color: var(--primary); }
-        .card-img-box { width: 100%; height: 200px; overflow: hidden; }
-        .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .movie-card-info { padding: 20px; }
-
+        .watch-btn { background: var(--accent); color: white; padding: 20px 50px; border-radius: 15px; font-weight: 900; text-decoration: none; border: none; }
+        
         @media (max-width: 900px) { .flex-row { flex-direction: column; } .poster-box { width: 100%; height: 400px; } }
     </style>
 </head>
@@ -89,13 +55,13 @@
         <h1>CineVault</h1>
         <div class="search-wrapper">
             <div class="search-container">
-                <input type="text" id="movieSearch" placeholder="Look for a hidden gem..." autocomplete="off">
+                <input type="text" id="movieSearch" placeholder="Search the elite collection..." autocomplete="off">
                 <button class="search-btn" onclick="fetchMovie(document.getElementById('movieSearch').value)">SEARCH</button>
             </div>
         </div>
     </header>
 
-    <div id="status-bar">AI SYNC: <span id="status-text">INITIALIZING</span></div>
+    <div id="status-bar">Sync Status: <span id="status-text">Curating Today's List...</span></div>
 
     <div id="movie-result">
         <div class="flex-row">
@@ -104,11 +70,12 @@
                 <h2 id="uiTitle" style="font-size:3.5rem; margin:0;"></h2>
                 <div id="uiRating" style="font-size:1.5rem; color:var(--primary); margin:20px 0; font-weight:800;"></div>
                 <p id="uiPlot" style="color:#888; line-height:1.8; margin-bottom:40px;"></p>
-                <button id="actionBtn" class="watch-btn">CLICK HERE TO WATCH</button>
+                <button id="actionBtn" class="watch-btn">WATCH NOW</button>
             </div>
         </div>
     </div>
 
+    <div class="grid-title">TOP RECOMMENDATIONS</div>
     <div id="trending-grid"></div>
 
     <script>
@@ -152,24 +119,30 @@
             }
         }
 
-        /* --- AI TRENDING --- */
+        /* --- TOP RECOMMENDATIONS (Parallel Loading) --- */
         async function loadTrending() {
             const grid = document.getElementById('trending-grid');
             const statusText = document.getElementById('status-text');
             
-            statusText.innerText = "SYNCING WITH AI DISCOVERY...";
+            statusText.innerText = "UPDATING TOP RECOMMENDATIONS...";
 
             try {
-                // This calls the recommend.js file in your api folder
-                const response = await fetch("/api/recommend");
-                const aiData = await response.json();
-                const aiText = aiData.choices[0].message.content;
-                const titles = JSON.parse(aiText.substring(aiText.indexOf('['), aiText.lastIndexOf(']') + 1));
+                // Using the unique timestamp to avoid browser caching
+                const response = await fetch(`/api/recommend?t=${Date.now()}`);
+                const curationData = await response.json();
+                const rawContent = curationData.choices[0].message.content;
+                const titles = JSON.parse(rawContent.substring(rawContent.indexOf('['), rawContent.lastIndexOf(']') + 1));
 
                 grid.innerHTML = "";
-                for (const t of titles) {
-                    const omdb = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(t)}&apikey=${OMDB_KEY}`);
-                    const d = await omdb.json();
+
+                // Fetching all data in parallel for high performance
+                const moviePromises = titles.map(t => 
+                    fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(t)}&apikey=${OMDB_KEY}`).then(r => r.json())
+                );
+
+                const results = await Promise.all(moviePromises);
+
+                results.forEach(d => {
                     if (d.Response === "True") {
                         const card = document.createElement('div');
                         card.className = 'movie-card';
@@ -178,10 +151,10 @@
                         card.onclick = () => fetchMovie(d.Title);
                         grid.appendChild(card);
                     }
-                }
-                statusText.innerText = `SYNC SUCCESS: ${titles.length} TITLES LOADED`;
+                });
+                statusText.innerText = `SUCCESS: ${results.filter(r => r.Response === "True").length} TOP TITLES LIVE`;
             } catch (err) {
-                statusText.innerText = "CONNECTION ERROR: DEPLOY TO VERCEL TO ENABLE AI";
+                statusText.innerText = "SYNC ERROR: RETRYING...";
             }
             applyHover();
         }
